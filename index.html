@@ -12,11 +12,124 @@
         <script src="js/react-dom.development.js"></script>
         <script src="js/babel.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/react-modal/3.14.3/react-modal.min.js"></script>
+        <script src="https://www.gstatic.com/charts/loader.js"></script>
 
         <script type="text/babel">
 
             const rootHandle = document.getElementById('root')
             const { useState, useEffect } = React 
+
+            const OrdersChart = (props) => {
+                const { countingObj } = props
+                // const { ordersPerCusomters } = props
+
+                const final_data = Object.entries(countingObj)
+                final_data.unshift(['order','customer']) 
+
+                google.charts.load('current', {'packages':['corechart']});
+                google.charts.setOnLoadCallback(drawChart);
+                    
+                // Draw the chart and set the chart values
+                function drawChart() {
+                    var data= google.visualization.arrayToDataTable(final_data)
+
+
+                // Display the chart inside the <div> element with id="piechart"
+                    var chart = new google.visualization.PieChart(document.getElementById('piechart'));
+                    chart.draw(data);
+                }
+
+                return (
+                    <div id="piechart" style={{width: '700px'}}></div>
+                )
+            }
+
+            const OrdersTable = props => {
+                const { countingObj } = props
+                return(
+                    <div>
+                        <table border="1">
+                            <thead>
+                                <tr>
+                                    <th>No of Orders</th>    
+                                    <th>Count Of Customers</th>    
+                                </tr>    
+                            </thead>
+                            <tbody>
+                                {
+                                    Object.keys(countingObj).map((ele,i) => {
+                                        return (
+                                            <tr key={ i }>
+                                                <td>{ ele }</td>    
+                                                <td>{ countingObj[ele] }</td>    
+                                            </tr>
+                                        )
+                                    })
+                                }    
+                            </tbody>    
+                        </table>
+                    </div>
+                )
+            }
+
+            const OrdersContainer = props => {
+                const { data, users } = props
+
+                const check = (nameC,phoneC) => {
+                    let c = 0
+                    data.forEach((ele) => {
+                        if( ele.Name === nameC && ele.Phone === phoneC){
+                            c++
+                        }
+                    })
+                    return c
+                }
+                const result = () => {
+                    const obj = { '5' : 0 }
+                    users.forEach((ele) => {
+                        const count = check(ele.Name, ele.Phone)
+                        if(count >= 5 ){
+                            obj['5'] = obj['5']+1
+                            // obj['5'] = 1
+                        }
+                        else if(!obj.hasOwnProperty(count) && count < 5){
+                            obj[count] = 1
+                        }
+                        else if( count < 5 ){
+                            obj[count] = obj[count] + 1
+                        }
+                    })
+                    return obj
+                }
+                const countingObj = result()
+                return (
+                    <div style={ { display:'inline-flex', justifyContent:'space-space-around' } }>
+                        <OrdersTable countingObj={ countingObj } />
+                        <OrdersChart countingObj={ countingObj }/>
+                    </div>
+                )
+            }
+
+            const StatItems = props => {
+                const { name, data } = props
+                return (
+                    <div style={ { width:'100px', height:'150px',border:'1px solid red',padding:'30px',textAlign:'center',margin:'12px',backgroundColor:'green' } }>
+                        <h1>{ data }</h1>
+                        <h2>{ name }</h2>    
+                    </div>
+                )
+            }
+
+            const StatsContainer = props => {
+                const { data, users, amount } = props
+                return(
+                    <div style={{ display:'inline-flex',border:'5px solid black',justifyContent:'center'}}>
+                        <StatItems name="Orders" data={ data.length }/>
+                        <StatItems name="Amounts" data={ amount }/>
+                        <StatItems name="Customers" data={ users.length }/>
+                    </div>
+                )
+            }
 
             const SearchBox = props => {
                 const [ input, setInput ] = useState('')
@@ -38,17 +151,37 @@
             }
 
             const CustomersContainer = props => {
-                const { nonRepate,filterSearch } = props
+                const [ modalIsOpen, setIsOpen ] = useState(false)
+                const [ totalOrders, setTotalOrders ] = useState([])
+                const [ totalAmount, setTotalAmount ] = useState('')
+                const [ nameId, setNameId ] = useState('')
 
-                const handleDetails = (ele) => {
-                    console.log(ele)
+                const { nonRepate,filterSearch,data } = props
+
+                const handleDetails = (ele,i) => {
+                    setIsOpen(true)
+                    const name = `user ${ i } - ${ ele.Phone }`
+                    setNameId(name)
+                    const countOrder = data.filter((d) => {  
+                        return d.Name === ele.Name && d.Phone === ele.Phone
+                    })
+                    setTotalOrders(countOrder)
+
+                    let amount = 0
+                    countOrder.forEach((ele) => {
+                        amount += ele.Amount
+                    })
+                    setTotalAmount(amount)
+                }
+
+                const closeModal = () => {
+                    setIsOpen(false)
                 }
                 return (
-                    <div>
-                        <SearchBox nonRepate={ nonRepate } filterSearch={ filterSearch }/>
-                        <h1>Listing Customers</h1>
-
+                    <div style={ { display:'inline-flex', justifyContent:'space-space-around' } }>
+                        
                         <table border="1">
+                            
                             <thead>
                                 <tr>
                                     <th>Id</th>    
@@ -62,20 +195,52 @@
                                     nonRepate.map((ele,i) => {
                                         return(
                                             <tr key={ i }>
-                                                <td>{ i }</td>    
+                                                <td>{ i+1 }</td>    
                                                 <td>{ ele.Name }</td>    
                                                 <td>{ ele.Phone }</td>    
-                                                <td> <a href="#" onClick={ () => {handleDetails(ele) }  }>Details</a> </td>    
+                                                <td> <a href="#" onClick={ () => {handleDetails(ele,i+1) }  }>Details</a> </td>    
                                             </tr>
                                         )
                                     })
                                 }    
                             </tbody>   
                         </table>
+                        <SearchBox nonRepate={ nonRepate } filterSearch={ filterSearch }/>
+                        <ReactModal isOpen={modalIsOpen}>
+                            <h1>{ nameId }</h1>
+                            <h1>Total Amount - { totalAmount }</h1>
+                            <h1>Order Count - { totalOrders.length }</h1>
+
+                            <table border="1">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>    
+                                        <th>Date</th>    
+                                        <th>Amount</th>    
+                                    </tr>    
+                                </thead>  
+                                <tbody>
+                                      {
+                                        totalOrders.map((ele,i) => {
+                                            return (
+                                                <tr key={ i }>
+                                                    <td>{ i+1 }</td>    
+                                                    <td>{ ele.Date }</td>    
+                                                    <td>{ ele.Amount }</td>    
+                                                </tr>
+                                            )
+                                        })
+                                      }  
+                                </tbody>  
+                            </table>
+
+                            <button onClick={ closeModal }>Close</button>
+                        </ReactModal>
                     </div>
                 )
             }
 
+            ReactModal.setAppElement('#root')
             function App(props){
                 const [users, setUsers ] = useState([])
                 const [ nonRepate, setNonRepate ] = useState([])
@@ -1067,13 +1232,14 @@
                     })
                     setNonRepate(result)
                     setUsers(result)
+
                 },[])
                 
                 const filterSearch = (name) => {
                     console.log(name)
                     if(name){
                         const result = users.filter((ele) => {
-                            return ele.Name.toLowerCase().includes(name.toLowerCase()) 
+                            return ele.Name.toLowerCase().includes(name.toLowerCase()) || ele.Phone.toString().includes(name)
                             // return ele.Phone.includes(Number(name))
                         })
                         setNonRepate(result) 
@@ -1084,14 +1250,35 @@
 
                 return(
                     <div>
-                        <h1>Customer Dashboard - { data.length }</h1>
+                        <h1>Customer Dashboard</h1>
                         <hr/>
-                        { nonRepate.length > 0 && <CustomersContainer nonRepate={ nonRepate } filterSearch={ filterSearch } /> }
-                        <hr/>
-                        <h1>Amount - { totalAmount }</h1>
-                        <h1>Orders - { data.length  }</h1>
-                        <h1>Customers - { users.length }</h1>
-                          
+                        <table style={{ width:'100%'}}>
+                            <tbody>
+                                <tr>
+                                    <StatsContainer 
+                                        amount={ totalAmount } 
+                                        data = { data } 
+                                        users={ users } 
+                                    />
+                                </tr> 
+                                <tr>
+                                    { 
+                                        nonRepate.length > 0 && 
+                                        <CustomersContainer   
+                                            nonRepate={ nonRepate } 
+                                            filterSearch={ filterSearch } 
+                                            data={ data } 
+                                        />       
+                                    }
+                                </tr>  
+                                <tr>
+                                    <OrdersContainer 
+                                        data={data} 
+                                        users={ users }
+                                    />
+                                </tr> 
+                            </tbody>    
+                        </table> 
                     </div>
                 )
 
